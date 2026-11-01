@@ -1,0 +1,219 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUxy | Luxury Lifestyle Store</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#f8f5ef;color:#171613;font-family:Montserrat,sans-serif}
+a{text-decoration:none;color:inherit}
+.announcement{text-align:center;background:#171613;color:#d8b979;padding:10px;font-size:10px;letter-spacing:2px}
+header{background:#fff;display:flex;align-items:center;justify-content:space-between;padding:20px 7%;position:sticky;top:0;z-index:10;border-bottom:1px solid #eee}
+.logo{font:36px 'Playfair Display';font-weight:600}
+.logo span{color:#b9975b}
+nav{display:flex;gap:25px;font-size:11px;letter-spacing:1px}
+nav a:hover{color:#b9975b}
+.hero{min-height:520px;background:linear-gradient(90deg,rgba(0,0,0,.8),rgba(0,0,0,.1)),url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1400') center/cover;display:flex;align-items:center;padding:8%;color:white}
+.hero-content{max-width:550px}
+.tag{color:#d8b979;font-size:11px;letter-spacing:3px}
+h1{font:clamp(42px,7vw,68px) 'Playfair Display';margin:20px 0}
+h1 span,.gold{color:#d8b979}
+.hero p{font-size:14px;line-height:1.9;color:#eee;margin-bottom:28px}
+.btn{display:inline-block;background:#c6a56b;color:#171613;padding:15px 25px;font-size:11px;letter-spacing:1px;font-weight:600}
+section{padding:75px 7%}
+.heading{text-align:center;margin-bottom:38px}
+.heading small{color:#b9975b;letter-spacing:3px;font-size:10px}
+h2{font:40px 'Playfair Display';margin:12px 0}
+.heading p{color:#777;font-size:13px;line-height:1.8}
+.categories{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.category{height:300px;position:relative;overflow:hidden;color:white}
+.category img{width:100%;height:100%;object-fit:cover;transition:.5s}
+.category:hover img{transform:scale(1.08)}
+.category:after{content:"";position:absolute;inset:0;background:linear-gradient(transparent,rgba(0,0,0,.8))}
+.category div{position:absolute;bottom:22px;left:18px;z-index:1}
+.category h3{font:26px 'Playfair Display'}
+.category p{font-size:11px;margin-top:5px}
+.collection{background:#eee9df}
+.products{display:grid;grid-template-columns:repeat(2,1fr);gap:22px}
+.product{background:white}
+.product img{width:100%;height:300px;object-fit:cover}
+.product-info{padding:22px}
+.product-info small{color:#b9975b;letter-spacing:2px}
+.product-info h3{font:23px 'Playfair Display';margin:10px 0}
+.product-info p{font-size:12px;color:#777;line-height:1.7}
+.promo{background:linear-gradient(rgba(0,0,0,.75),rgba(0,0,0,.75)),url('https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1400') center/cover;color:white;text-align:center}
+.promo h2{font-size:48px}
+.promo p{font-size:13px;line-height:1.8;margin:15px auto 25px;max-width:500px}
+.newsletter{text-align:center}
+.newsletter p{font-size:13px;color:#777;margin:12px}
+form{display:flex;max-width:450px;margin:25px auto}
+input{flex:1;min-width:0;padding:14px;border:1px solid #ccc;background:transparent}
+button{padding:14px;background:#171613;color:#d8b979;border:0;cursor:pointer}
+footer{background:#171613;color:white;padding:50px 7% 20px}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:25px}
+footer h3{font:26px 'Playfair Display';margin-bottom:15px}
+footer h4{color:#d8b979;font-size:11px;margin-bottom:15px}
+footer p,footer a{display:block;color:#aaa;font-size:12px;line-height:2}
+.copyright{border-top:1px solid #444;margin-top:35px;padding-top:20px;text-align:center;color:#999;font-size:10px}
+@media(max-width:700px){
+ header{padding:15px 5%}
+ nav{gap:12px;font-size:9px}
+ .logo{font-size:29px}
+ .categories{grid-template-columns:repeat(2,1fr)}
+ .category{height:230px}
+ .products{grid-template-columns:1fr}
+ .product img{height:270px}
+ section{padding:55px 5%}
+ .footer-grid{grid-template-columns:1fr 1fr}
+ .footer-grid>div:first-child{grid-column:1/-1}
+}
+@media(max-width:380px){nav{gap:7px;font-size:8px}}
+</style>
+</head>
+
+<body>
+
+<div class="announcement">WELCOME TO LUxy — THE ART OF EVERYDAY LUXURY</div>
+
+<header>
+<a href="#home" class="logo">LU<span>xy</span></a>
+<nav>
+<a href="#home">HOME</a>
+<a href="#categories">SHOP</a>
+<a href="#collection">COLLECTION</a>
+<a href="#about">ABOUT</a>
+</nav>
+</header>
+
+<section class="hero" id="home">
+<div class="hero-content">
+<div class="tag">THE ART OF EVERYDAY LUXURY</div>
+<h1>Discover Your <span>Signature Style.</span></h1>
+<p>Explore a world of fashion, beauty and lifestyle essentials. Thoughtfully selected for your everyday moments.</p>
+<a href="#categories" class="btn">EXPLORE COLLECTION ↗</a>
+</div>
+</section>
+
+<section id="categories">
+<div class="heading">
+<small>EXPLORE LUxy</small>
+<h2>Shop By <span class="gold">Category</span></h2>
+<p>Discover carefully selected essentials for your lifestyle.</p>
+</div>
+
+<div class="categories">
+<a href="#collection" class="category">
+<img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600" alt="Fashion">
+<div><h3>Fashion</h3><p>Style that speaks</p></div>
+</a>
+<a href="#collection" class="category">
+<img src="https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=600" alt="Beauty">
+<div><h3>Beauty</h3><p>Your daily essentials</p></div>
+</a>
+<a href="#collection" class="category">
+<img src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=600" alt="Grocery">
+<div><h3>Grocery</h3><p>Freshness for life</p></div>
+</a>
+<a href="#collection" class="category">
+<img src="https://images.unsplash.com/photo-1498049794561-7780e7231661?w=600" alt="Electronics">
+<div><h3>Electronics</h3><p>Modern living</p></div>
+</a>
+</div>
+</section>
+
+<section class="collection" id="collection">
+<div class="heading">
+<small>CURATED FOR YOU</small>
+<h2>The LUxy <span class="gold">Collection</span></h2>
+<p>A selection of lifestyle inspiration.</p>
+</div>
+
+<div class="products">
+<div class="product">
+<img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=800" alt="Fashion collection">
+<div class="product-info">
+<small>FASHION</small>
+<h3>Elevated Everyday Style</h3>
+<p>Discover timeless fashion inspiration.</p>
+</div>
+</div>
+<div class="product">
+<img src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=800" alt="Beauty collection">
+<div class="product-info">
+<small>BEAUTY</small>
+<h3>The Beauty Edit</h3>
+<p>Explore your everyday beauty essentials.</p>
+</div>
+</div>
+</div>
+</section>
+
+<section class="promo">
+<div class="tag">THE LUxy EXPERIENCE</div>
+<h2>Luxury Is In <span class="gold">The Details.</span></h2>
+<p>Explore a thoughtfully curated world of products designed to make everyday living feel special.</p>
+<a href="#categories" class="btn">EXPLORE LUxy</a>
+</section>
+
+<section class="newsletter">
+<div class="tag">STAY CONNECTED</div>
+<h2>A Little Luxury<br>In Your Inbox.</h2>
+<p>Subscribe to discover new collections and updates.</p>
+<form id="newsletter">
+<input type="email" placeholder="Enter your email" required>
+<button type="submit">SUBSCRIBE</button>
+</form>
+<p id="message"></p>
+</section>
+
+<footer id="about">
+<div class="footer-grid">
+<div>
+<h3>LU<span class="gold">xy</span></h3>
+<p>Discover fashion, beauty and lifestyle essentials. Experience everyday luxury with LUxy.</p>
+</div>
+<div>
+<h4>EXPLORE</h4>
+<a href="#home">Home</a>
+<a href="#categories">Categories</a>
+<a href="#collection">Collections</a>
+</div>
+<div>
+<h4>CATEGORIES</h4>
+<a href="#categories">Fashion</a>
+<a href="#categories">Beauty</a>
+<a href="#categories">Grocery</a>
+<a href="#categories">Electronics</a>
+</div>
+</div>
+<div class="copyright">© <span id="year"></span> LUxy. All rights reserved.</div>
+</footer>
+
+<script>
+document.getElementById("year").textContent=new Date().getFullYear();
+
+document.getElementById("newsletter").addEventListener("submit",function(e){
+e.preventDefault();
+document.getElementById("message").textContent="Thank you for your interest in LUxy!";
+this.reset();
+});
+
+document.querySelectorAll('a[href^="#"]').forEach(function(link){
+link.addEventListener("click",function(e){
+const target=document.querySelector(this.getAttribute("href"));
+if(target){
+e.preventDefault();
+target.scrollIntoView({behavior:"smooth"});
+}
+});
+});
+</script>
+
+</body>
+</html>
