@@ -228,6 +228,17 @@ const supabase = window.supabase.createClient(
 );
 
 console.log("LUxy Supabase Connected!");
+supabase
+  .from("Product")
+  .select("id")
+  .limit(1)
+  .then(({ data, error }) => {
+    if (error) {
+      alert("Database Error: " + error.message);
+    } else {
+      alert("LUxy Database Connected Successfully!");
+    }
+  });
 </script>
 
 </body>
