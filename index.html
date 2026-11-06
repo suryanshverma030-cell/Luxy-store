@@ -217,31 +217,66 @@ target.scrollIntoView({behavior:"smooth"});
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+(() => {
+  const status = document.createElement("div");
 
-document.body.insertAdjacentHTML("afterbegin", "<div style='background:#d4edda;color:#155724;padding:15px;text-align:center;font-weight:bold'>LUxy JavaScript is running</div>");
+  status.style.cssText = `
+    background:#111;
+    color:#d4af37;
+    padding:16px;
+    margin:15px;
+    border:1px solid #d4af37;
+    border-radius:8px;
+    font-size:15px;
+    font-weight:bold;
+    text-align:center;
+    position:relative;
+    z-index:9999;
+  `;
 
-const SUPABASE_URL = "https://gnbwmqxhahtwujplqzoc.supabase.co";
+  document.body.prepend(status);
 
-const SUPABASE_KEY = "sb_publishable_eagohtv5xeViT-ARla4kUQ_CWkGp3iD";
+  function show(message) {
+    status.textContent = message;
+  }
 
-const supabase = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+  show("1/3 JavaScript loaded. Checking Supabase...");
 
-console.log("LUxy Supabase Connected!");
-supabase
-  .from("Product")
-  .select("id")
-  .limit(1)
-  .then(({ data, error }) => {
-    if (error) {
-      alert("Database Error: " + error.message);
-    } else {
-      alert("LUxy Database Connected Successfully!");
-    }
-  });
+  if (!window.supabase) {
+    show("ERROR: Supabase library did not load.");
+    return;
+  }
+
+  try {
+    const client = window.supabase.createClient(
+      "https://gnbwmqxhahtwujplqzoc.supabase.co",
+      "sb_publishable_eagohtv5xeViT-ARla4kUQ_CWkGp3iD"
+    );
+
+    show("2/3 Supabase loaded. Checking database...");
+
+    client
+      .from("Product")
+      .select("id")
+      .limit(1)
+      .then(({ data, error }) => {
+        if (error) {
+          show("DATABASE ERROR: " + error.message);
+        } else {
+          show("SUCCESS! LUxy database connected.");
+        }
+      })
+      .catch(error => {
+        show("CONNECTION ERROR: " + error.message);
+      });
+
+  } catch (error) {
+    show("SETUP ERROR: " + error.message);
+  }
+})();
 </script>
+
+
 
 </body>
 </html>
