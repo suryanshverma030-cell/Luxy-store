@@ -1,0 +1,283 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUxy | Admin Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101010;color:#f5f0e6;font-family:Arial,sans-serif}
+header{padding:20px;background:#080808;border-bottom:1px solid #b99a54}
+h1{color:#d6b76b;letter-spacing:4px;margin:0}
+main{max-width:850px;margin:25px auto;padding:15px}
+.panel{background:#191919;border:1px solid #66542d;border-radius:12px;padding:20px;margin-bottom:20px}
+h2{color:#d6b76b}
+input,button{width:100%;padding:13px;margin:8px 0;border-radius:7px;border:1px solid #8e7540;font-size:15px}
+input{background:#101010;color:white}
+button{background:#c6a65b;color:#111;font-weight:bold;cursor:pointer}
+button.secondary{background:#292929;color:#e8d5a3}
+button.danger{background:#8c2929;color:white}
+.hidden{display:none}
+.product{border-bottom:1px solid #555;padding:14px 0}
+.product img{width:75px;height:75px;object-fit:cover;border-radius:6px}
+.product-row{display:flex;gap:12px;align-items:center}
+small{color:#c6a65b}
+#status{color:#e4c77f;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<header><h1>LUxy</h1><small>ADMIN CONTROL PANEL</small></header>
+
+<main>
+<section class="panel" id="loginPanel">
+<h2>Admin Login</h2>
+<input id="email" type="email" placeholder="Admin email">
+<input id="password" type="password" placeholder="Password">
+<button id="loginBtn">LOGIN SECURELY</button>
+<p id="loginStatus"></p>
+</section>
+
+<section id="dashboard" class="hidden">
+<div class="panel">
+<h2>Dashboard</h2>
+<p>Welcome to LUxy Admin Panel.</p>
+<button class="secondary" id="refreshBtn">Refresh Products</button>
+<button class="secondary" id="logoutBtn">Logout</button>
+</div>
+
+<div class="panel">
+<h2 id="formTitle">Add New Product</h2>
+<form id="productForm">
+<input id="productName" placeholder="Product name" required>
+<input id="price" type="number" min="0" step="0.01" placeholder="Price (₹)" required>
+<input id="category" placeholder="Category (Fashion, Beauty, Grocery)" required>
+<input id="imageUrl" type="url" placeholder="Product image URL" required>
+<input id="stock" type="number" min="0" step="1" placeholder="Stock quantity" required>
+<button type="submit" id="saveBtn">ADD PRODUCT</button>
+<button type="button" class="secondary hidden" id="cancelEdit">CANCEL EDIT</button>
+</form>
+</div>
+
+<div class="panel">
+<h2>Product Management</h2>
+<div id="products">Loading products...</div>
+</div>
+</section>
+
+<p id="status"></p>
+</main>
+
+<script>
+const SUPABASE_URL = "https://gnbwmqxhahtwujplqzoc.supabase.co";
+const SUPABASE_KEY = "sb_publishable_eagohtv5xeViT-ARla4kUQ_CWkGp3iD";
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+let editingId = null;
+
+function message(text){
+  $("status").textContent = text;
+}
+
+function safe(value){
+  return String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+async function verifyAdmin(){
+  const {data:{user}} = await db.auth.getUser();
+  if(!user) return false;
+
+  const {data,error} = await db
+    .from("admin_users")
+    .select("user_id")
+    .eq("user_id",user.id)
+    .maybeSingle();
+
+  if(error){
+    message("Admin verification failed: " + error.message);
+    return false;
+  }
+  return !!data;
+}
+
+async function showDashboard(){
+  const valid = await verifyAdmin();
+
+  if(!valid){
+    await db.auth.signOut();
+    $("dashboard").classList.add("hidden");
+    $("loginPanel").classList.remove("hidden");
+    $("loginStatus").textContent = "This account is not authorized as admin.";
+    return;
+  }
+
+  $("loginPanel").classList.add("hidden");
+  $("dashboard").classList.remove("hidden");
+  $("loginStatus").textContent = "";
+  await loadProducts();
+}
+
+$("loginBtn").onclick = async () => {
+  const email = $("email").value.trim();
+  const password = $("password").value;
+
+  if(!email || !password){
+    $("loginStatus").textContent = "Enter email and password.";
+    return;
+  }
+
+  $("loginBtn").disabled = true;
+  $("loginStatus").textContent = "Checking login...";
+
+  const {error} = await db.auth.signInWithPassword({email,password});
+
+  $("loginBtn").disabled = false;
+
+  if(error){
+    $("loginStatus").textContent = error.message;
+    return;
+  }
+
+  await showDashboard();
+};
+
+async function loadProducts(){
+  $("products").textContent = "Loading...";
+
+  const {data,error} = await db
+    .from("Product")
+    .select("*")
+    .order("id",{ascending:false});
+
+  if(error){
+    $("products").textContent = "Could not load products: " + error.message;
+    return;
+  }
+
+  if(!data || data.length === 0){
+    $("products").textContent = "No products found.";
+    return;
+  }
+
+  $("products").innerHTML = data.map(p => `
+    <div class="product">
+      <div class="product-row">
+        <img src="${safe(p.image_url)}" alt="Product"
+          onerror="this.style.display='none'">
+        <div>
+          <b>${safe(p.product_name)}</b><br>
+          <small>₹${safe(p.price)} | Stock: ${safe(p.stock)}</small><br>
+          <small>${safe(p.category)}</small>
+        </div>
+      </div>
+      <button class="secondary" data-edit="${safe(p.id)}">EDIT</button>
+      <button class="danger" data-delete="${safe(p.id)}">DELETE</button>
+    </div>
+  `).join("");
+
+  data.forEach(p => {
+    const editBtn = $("products").querySelector(`[data-edit="${CSS.escape(String(p.id))}"]`);
+    const deleteBtn = $("products").querySelector(`[data-delete="${CSS.escape(String(p.id))}"]`);
+
+    editBtn.onclick = () => editProduct(p);
+    deleteBtn.onclick = () => deleteProduct(p.id);
+  });
+}
+
+function editProduct(p){
+  editingId = p.id;
+  $("productName").value = p.product_name || "";
+  $("price").value = p.price ?? "";
+  $("category").value = p.category || "";
+  $("imageUrl").value = p.image_url || "";
+  $("stock").value = p.stock ?? "";
+  $("formTitle").textContent = "Edit Product";
+  $("saveBtn").textContent = "UPDATE PRODUCT";
+  $("cancelEdit").classList.remove("hidden");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function resetForm(){
+  editingId = null;
+  $("productForm").reset();
+  $("formTitle").textContent = "Add New Product";
+  $("saveBtn").textContent = "ADD PRODUCT";
+  $("cancelEdit").classList.add("hidden");
+}
+
+$("cancelEdit").onclick = resetForm;
+
+$("productForm").onsubmit = async event => {
+  event.preventDefault();
+
+  const product = {
+    product_name: $("productName").value.trim(),
+    price: Number($("price").value),
+    category: $("category").value.trim(),
+    image_url: $("imageUrl").value.trim(),
+    stock: Number($("stock").value)
+  };
+
+  if(!product.product_name || !product.category || !product.image_url){
+    message("Please complete all fields.");
+    return;
+  }
+
+  $("saveBtn").disabled = true;
+  message("Saving product...");
+
+  let result;
+
+  if(editingId !== null){
+    result = await db.from("Product").update(product).eq("id",editingId);
+  }else{
+    result = await db.from("Product").insert([product]);
+  }
+
+  $("saveBtn").disabled = false;
+
+  if(result.error){
+    message("Save failed: " + result.error.message);
+    return;
+  }
+
+  message("Product saved successfully.");
+  resetForm();
+  await loadProducts();
+};
+
+async function deleteProduct(id){
+  if(!confirm("Delete this product permanently?")) return;
+
+  const {error} = await db.from("Product").delete().eq("id",id);
+
+  if(error){
+    message("Delete failed: " + error.message);
+    return;
+  }
+
+  message("Product deleted.");
+  await loadProducts();
+}
+
+$("refreshBtn").onclick = loadProducts;
+
+$("logoutBtn").onclick = async () => {
+  await db.auth.signOut();
+  $("dashboard").classList.add("hidden");
+  $("loginPanel").classList.remove("hidden");
+  resetForm();
+  message("Logged out.");
+};
+
+db.auth.getSession().then(async ({data}) => {
+  if(data.session) await showDashboard();
+});
+</script>
+</body>
+</html>
