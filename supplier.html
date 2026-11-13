@@ -1,0 +1,302 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUxy Supplier Portal</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#090909;color:#f5f0df;font-family:Arial,sans-serif}
+header{padding:22px;text-align:center;border-bottom:1px solid #b99a48}
+.logo{font-size:30px;letter-spacing:7px;color:#d6b65c}
+.sub{color:#aaa;font-size:12px;letter-spacing:3px}
+main{max-width:650px;margin:25px auto;padding:18px}
+.card{background:#151515;border:1px solid #514323;border-radius:12px;padding:20px;margin-bottom:18px}
+h2{color:#d6b65c;margin-top:0}
+input,textarea,select{width:100%;padding:13px;margin:8px 0 14px;background:#080808;border:1px solid #555;color:white;border-radius:6px}
+button{padding:13px 18px;background:#c5a34c;color:#090909;border:0;border-radius:6px;font-weight:bold;cursor:pointer;margin:5px 4px 5px 0}
+.secondary{background:#333;color:white}
+.hidden{display:none}
+#message{padding:12px;border-radius:6px;background:#242424;margin:12px 0;white-space:pre-wrap}
+.item{border-bottom:1px solid #444;padding:12px 0}
+small{color:#bbb}
+</style>
+</head>
+<body>
+<header>
+ <div class="logo">LUxy</div>
+ <div class="sub">SUPPLIER PORTAL</div>
+</header>
+
+<main>
+ <div id="message">Welcome to LUxy Supplier Portal.</div>
+
+ <section class="card" id="authBox">
+  <h2>Supplier Account</h2>
+  <input id="email" type="email" placeholder="Business email">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="register()">Create Account</button>
+  <button class="secondary" onclick="login()">Login</button>
+ </section>
+
+ <section class="card hidden" id="profileBox">
+  <h2>Business Registration</h2>
+  <p><small>Submit your business details for LUxy admin approval.</small></p>
+  <input id="business" placeholder="Business name">
+  <input id="contact" placeholder="Contact person name">
+  <input id="phone" type="tel" placeholder="Phone number">
+  <input id="businessEmail" type="email" placeholder="Business email">
+  <textarea id="address" placeholder="Business address"></textarea>
+  <button onclick="saveProfile()">Submit for Approval</button>
+ </section>
+
+ <section class="card hidden" id="dashboard">
+  <h2>Supplier Dashboard</h2>
+  <p id="supplierStatus"></p>
+  <button class="secondary" onclick="logout()">Logout</button>
+ </section>
+
+ <section class="card hidden" id="productBox">
+  <h2>Submit New Product</h2>
+  <input id="pname" placeholder="Product name">
+  <textarea id="description" placeholder="Product description"></textarea>
+  <input id="price" type="number" min="0" placeholder="Price (₹)">
+  <input id="category" placeholder="Category">
+  <input id="image" type="url" placeholder="Product image URL">
+  <input id="stock" type="number" min="0" placeholder="Available stock">
+  <button onclick="addProduct()">Submit Product</button>
+  <p><small>Products remain pending until admin approval.</small></p>
+ </section>
+
+ <section class="card hidden" id="myProducts">
+  <h2>My Submitted Products</h2>
+  <div id="productList"></div>
+ </section>
+</main>
+
+<script>
+const SUPABASE_URL = "https://gnbwmqxhahtwujplqzoc.supabase.co";
+const SUPABASE_KEY = "sb_publishable_eagohtv5xeViT-ARla4kUQ_CWkGp3iD";
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+let supplierProfile = null;
+
+const $ = id => document.getElementById(id);
+
+function message(text){
+ $("message").textContent = text;
+}
+
+function show(id, yes=true){
+ $(id).classList.toggle("hidden",!yes);
+}
+
+async function register(){
+ const email=$("email").value.trim();
+ const password=$("password").value;
+
+ if(!email || password.length<6){
+  message("Enter a valid email and password of at least 6 characters.");
+  return;
+ }
+
+ const {data,error}=await db.auth.signUp({email,password});
+
+ if(error){message(error.message);return;}
+
+ if(data.session){
+  currentUser=data.user;
+  show("authBox",false);
+  show("profileBox",true);
+  message("Account created. Complete your business registration.");
+ }else{
+  message("Account created. Check your email to confirm your account, then log in and complete your business registration.");
+ }
+}
+
+async function login(){
+ const email=$("email").value.trim();
+ const password=$("password").value;
+
+ const {data,error}=await db.auth.signInWithPassword({email,password});
+
+ if(error){message(error.message);return;}
+
+ currentUser=data.user;
+ await loadSupplier();
+}
+
+async function saveProfile(){
+ if(!currentUser){message("Please login first.");return;}
+
+ const business=$("business").value.trim();
+ const contact=$("contact").value.trim();
+ const phone=$("phone").value.trim();
+ const businessEmail=$("businessEmail").value.trim();
+ const address=$("address").value.trim();
+
+ if(!business || !contact || !phone || !businessEmail || !address){
+  message("Please fill all business details.");
+  return;
+ }
+
+ const {error}=await db.from("supplier_profiles").insert({
+  user_id:currentUser.id,
+  business_name:business,
+  contact_name:contact,
+  phone,
+  business_email:businessEmail,
+  address,
+  status:"pending"
+ });
+
+ if(error){
+  message(error.message);
+  return;
+ }
+
+ message("Business profile submitted successfully. Wait for admin approval.");
+ await loadSupplier();
+}
+
+async function loadSupplier(){
+ const {data,error}=await db
+  .from("supplier_profiles")
+  .select("*")
+  .eq("user_id",currentUser.id)
+  .maybeSingle();
+
+ if(error){message(error.message);return;}
+
+ show("authBox",false);
+
+ if(!data){
+  supplierProfile=null;
+  show("profileBox",true);
+  show("dashboard",false);
+  show("productBox",false);
+  show("myProducts",false);
+  message("Complete your supplier registration.");
+  return;
+ }
+
+ supplierProfile=data;
+ show("profileBox",false);
+ show("dashboard",true);
+
+ if(data.status==="approved"){
+  $("supplierStatus").textContent="Status: APPROVED";
+  show("productBox",true);
+  show("myProducts",true);
+  await loadProducts();
+ }else{
+  $("supplierStatus").textContent="Status: "+data.status.toUpperCase()+" — Waiting for admin approval.";
+  show("productBox",false);
+  show("myProducts",false);
+ }
+
+ message("Welcome to your LUxy Supplier Dashboard.");
+}
+
+async function addProduct(){
+ if(!supplierProfile || supplierProfile.status!=="approved"){
+  message("Your supplier account is not approved yet.");
+  return;
+ }
+
+ const product_name=$("pname").value.trim();
+ const description=$("description").value.trim();
+ const price=Number($("price").value);
+ const category=$("category").value.trim();
+ const image_url=$("image").value.trim();
+ const stock=Number($("stock").value);
+
+ if(!product_name || !category || $("price").value==="" || price<0 || $("stock").value==="" || !Number.isInteger(stock) || stock<0){
+  message("Enter valid product name, category, price and stock.");
+  return;
+ }
+
+ if(image_url && !/^https?:\/\//i.test(image_url)){
+  message("Enter a valid image URL.");
+  return;
+ }
+
+ const {error}=await db.from("supplier_products").insert({
+  supplier_id:supplierProfile.id,
+  product_name,
+  description,
+  price,
+  category,
+  image_url:image_url || null,
+  stock,
+  status:"pending"
+ });
+
+ if(error){message(error.message);return;}
+
+ message("Product submitted. It is waiting for admin approval.");
+
+ ["pname","description","price","category","image","stock"].forEach(id=>$(id).value="");
+
+ await loadProducts();
+}
+
+async function loadProducts(){
+ const {data,error}=await db
+  .from("supplier_products")
+  .select("*")
+  .eq("supplier_id",supplierProfile.id)
+  .order("created_at",{ascending:false});
+
+ if(error){message(error.message);return;}
+
+ $("productList").replaceChildren();
+
+ if(!data || data.length===0){
+  $("productList").textContent="No products submitted yet.";
+  return;
+ }
+
+ data.forEach(p=>{
+  const item=document.createElement("div");
+  item.className="item";
+
+  const name=document.createElement("strong");
+  name.textContent=p.product_name;
+
+  const details=document.createElement("p");
+  details.textContent="₹"+p.price+" | Stock: "+p.stock;
+
+  const status=document.createElement("small");
+  status.textContent="Status: "+p.status.toUpperCase();
+
+  item.append(name,details,status);
+  $("productList").appendChild(item);
+ });
+}
+
+async function logout(){
+ await db.auth.signOut();
+ currentUser=null;
+ supplierProfile=null;
+ show("authBox",true);
+ show("profileBox",false);
+ show("dashboard",false);
+ show("productBox",false);
+ show("myProducts",false);
+ message("You have logged out.");
+}
+
+db.auth.getSession().then(async ({data})=>{
+ if(data.session){
+  currentUser=data.session.user;
+  await loadSupplier();
+ }
+});
+</script>
+</body>
+</html>
