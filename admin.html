@@ -40,27 +40,23 @@ small{color:#c6a65b}
 
 <main>
 
-<!-- LOGIN -->
 <section class="panel" id="loginPanel">
  <h2>Admin Login</h2>
- <input id="email" type="email" placeholder="Admin email" autocomplete="username">
- <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+ <input id="email" type="email" placeholder="Admin email">
+ <input id="password" type="password" placeholder="Password">
  <button id="loginBtn">LOGIN SECURELY</button>
  <button class="secondary" id="forgotBtn">FORGOT PASSWORD?</button>
  <p id="loginStatus"></p>
 </section>
 
-<!-- PASSWORD RESET -->
 <section class="panel hidden" id="resetPanel">
  <h2>Reset Password</h2>
- <p>Enter your new admin password below.</p>
- <input id="newPassword" type="password" placeholder="New password" autocomplete="new-password">
- <input id="confirmPassword" type="password" placeholder="Confirm new password" autocomplete="new-password">
+ <input id="newPassword" type="password" placeholder="New password">
+ <input id="confirmPassword" type="password" placeholder="Confirm new password">
  <button id="resetBtn">UPDATE PASSWORD</button>
  <p id="resetStatus"></p>
 </section>
 
-<!-- DASHBOARD -->
 <section id="dashboard" class="hidden">
 
  <div class="panel">
@@ -71,7 +67,7 @@ small{color:#c6a65b}
  </div>
 
  <div class="panel">
-  <h2 id="formTitle">Add New Product</h2>
+  <h2>Add New Product</h2>
   <form id="productForm">
    <input id="productName" placeholder="Product name" required>
    <input id="price" type="number" min="0" step="0.01" placeholder="Price in INR" required>
@@ -88,6 +84,13 @@ small{color:#c6a65b}
   <div id="products">Loading products...</div>
  </div>
 
+ <div class="panel">
+  <h2>Supplier Management</h2>
+  <p>Review and approve supplier registrations.</p>
+  <button class="secondary" id="refreshSuppliersBtn">REFRESH SUPPLIERS</button>
+  <div id="suppliers">Loading suppliers...</div>
+ </div>
+
 </section>
 
 <p id="status"></p>
@@ -97,7 +100,10 @@ small{color:#c6a65b}
 const SUPABASE_URL = "https://gnbwmqxhahtwujplqzoc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_eagohtv5xeViT-ARla4kUQ_CWkGp3iD";
 
-const db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const db = window.supabase.createClient(
+ SUPABASE_URL,
+ SUPABASE_KEY
+);
 
 const $ = id => document.getElementById(id);
 
@@ -105,9 +111,9 @@ let editingId = null;
 let recoveryMode = false;
 
 function showOnly(panel){
- $("loginPanel").classList.add("hidden");
- $("resetPanel").classList.add("hidden");
- $("dashboard").classList.add("hidden");
+ ["loginPanel","resetPanel","dashboard"].forEach(id=>{
+  $(id).classList.add("hidden");
+ });
  $(panel).classList.remove("hidden");
 }
 
@@ -124,7 +130,6 @@ function validImageURL(value){
  }
 }
 
-// Check that logged-in user is an authorized admin
 async function verifyAdmin(){
  const {data:{user},error:userError} = await db.auth.getUser();
 
@@ -157,7 +162,9 @@ async function openDashboard(){
 
  showOnly("dashboard");
  $("loginStatus").textContent = "";
+
  await loadProducts();
+ await loadSuppliers();
 }
 
 // LOGIN
@@ -192,8 +199,7 @@ $("forgotBtn").onclick = async () => {
  const email = $("email").value.trim();
 
  if(!email){
-  $("loginStatus").textContent =
-   "Enter your admin email first.";
+  $("loginStatus").textContent = "Enter your admin email first.";
   return;
  }
 
@@ -201,8 +207,7 @@ $("forgotBtn").onclick = async () => {
  $("loginStatus").textContent = "Sending recovery email...";
 
  const {error} = await db.auth.resetPasswordForEmail(email,{
-  redirectTo: window.location.origin +
-   window.location.pathname
+  redirectTo:window.location.origin + window.location.pathname
  });
 
  $("forgotBtn").disabled = false;
@@ -212,7 +217,7 @@ $("forgotBtn").onclick = async () => {
   : "Recovery email sent. Open the latest email link.";
 };
 
-// RECOVERY LINK DETECTION
+// PASSWORD RECOVERY
 db.auth.onAuthStateChange((event) => {
  if(event === "PASSWORD_RECOVERY"){
   recoveryMode = true;
@@ -234,17 +239,14 @@ $("resetBtn").onclick = async () => {
  }
 
  if(password !== confirm){
-  $("resetStatus").textContent =
-   "Passwords do not match.";
+  $("resetStatus").textContent = "Passwords do not match.";
   return;
  }
 
  $("resetBtn").disabled = true;
  $("resetStatus").textContent = "Updating password...";
 
- const {error} = await db.auth.updateUser({
-  password:password
- });
+ const {error} = await db.auth.updateUser({password});
 
  $("resetBtn").disabled = false;
 
@@ -263,9 +265,7 @@ $("resetBtn").onclick = async () => {
  $("newPassword").value = "";
  $("confirmPassword").value = "";
 
- setTimeout(() => {
-  showOnly("loginPanel");
- },1200);
+ setTimeout(()=>showOnly("loginPanel"),1200);
 };
 
 // LOAD PRODUCTS
@@ -284,87 +284,83 @@ async function loadProducts(){
   return;
  }
 
- if(!data || data.length === 0){
+ container.replaceChildren();
+
+ if(!data || data.length===0){
   container.textContent = "No products found.";
   return;
  }
 
- container.replaceChildren();
+ data.forEach(p=>{
+  const card=document.createElement("div");
+  card.className="product";
 
- data.forEach(p => {
-  const card = document.createElement("div");
-  card.className = "product";
+  const row=document.createElement("div");
+  row.className="productRow";
 
-  const row = document.createElement("div");
-  row.className = "productRow";
+  const img=document.createElement("img");
+  img.alt="Product image";
+  img.src=validImageURL(p.image_url)?p.image_url:"";
+  img.onerror=()=>img.style.display="none";
 
-  const img = document.createElement("img");
-  img.alt = "Product image";
-  img.src = validImageURL(p.image_url)
-   ? p.image_url : "";
-  img.onerror = () => img.style.display = "none";
+  const info=document.createElement("div");
+  info.className="productInfo";
 
-  const info = document.createElement("div");
-  info.className = "productInfo";
+  const name=document.createElement("b");
+  name.textContent=p.product_name || "Untitled Product";
 
-  const name = document.createElement("b");
-  name.textContent = p.product_name || "Untitled Product";
+  const details=document.createElement("p");
+  details.textContent="₹"+p.price+" | Stock: "+p.stock;
 
-  const details = document.createElement("p");
-  details.textContent =
-   "₹" + p.price + " | Stock: " + p.stock;
-
-  const category = document.createElement("small");
-  category.textContent = p.category || "";
+  const category=document.createElement("small");
+  category.textContent=p.category || "";
 
   info.append(name,details,category);
   row.append(img,info);
 
-  const edit = document.createElement("button");
-  edit.className = "secondary";
-  edit.textContent = "EDIT";
-  edit.onclick = () => editProduct(p);
+  const edit=document.createElement("button");
+  edit.className="secondary";
+  edit.textContent="EDIT";
+  edit.onclick=()=>editProduct(p);
 
-  const del = document.createElement("button");
-  del.className = "danger";
-  del.textContent = "DELETE";
-  del.onclick = () => deleteProduct(p.id);
+  const del=document.createElement("button");
+  del.className="danger";
+  del.textContent="DELETE";
+  del.onclick=()=>deleteProduct(p.id);
 
   card.append(row,edit,del);
   container.append(card);
  });
 }
 
-// ADD / EDIT PRODUCT
+// ADD / EDIT PRODUCTS
 function resetForm(){
- editingId = null;
+ editingId=null;
  $("productForm").reset();
- $("formTitle").textContent = "Add New Product";
- $("saveBtn").textContent = "ADD PRODUCT";
+ $("saveBtn").textContent="ADD PRODUCT";
  $("cancelBtn").classList.add("hidden");
 }
 
 function editProduct(p){
- editingId = p.id;
- $("productName").value = p.product_name || "";
- $("price").value = p.price ?? "";
- $("category").value = p.category || "";
- $("imageUrl").value = p.image_url || "";
- $("stock").value = p.stock ?? "";
+ editingId=p.id;
+ $("productName").value=p.product_name || "";
+ $("price").value=p.price ?? "";
+ $("category").value=p.category || "";
+ $("imageUrl").value=p.image_url || "";
+ $("stock").value=p.stock ?? "";
 
- $("formTitle").textContent = "Edit Product";
- $("saveBtn").textContent = "UPDATE PRODUCT";
+ $("saveBtn").textContent="UPDATE PRODUCT";
  $("cancelBtn").classList.remove("hidden");
 
  window.scrollTo({top:0,behavior:"smooth"});
 }
 
-$("cancelBtn").onclick = resetForm;
+$("cancelBtn").onclick=resetForm;
 
-$("productForm").onsubmit = async event => {
+$("productForm").onsubmit=async event=>{
  event.preventDefault();
 
- const product = {
+ const product={
   product_name:$("productName").value.trim(),
   price:Number($("price").value),
   category:$("category").value.trim(),
@@ -374,29 +370,29 @@ $("productForm").onsubmit = async event => {
 
  if(!product.product_name || !product.category ||
     !validImageURL(product.image_url) ||
-    !Number.isFinite(product.price) || product.price < 0 ||
-    !Number.isInteger(product.stock) || product.stock < 0){
+    !Number.isFinite(product.price) || product.price<0 ||
+    !Number.isInteger(product.stock) || product.stock<0){
   status("Please check all product details.");
   return;
  }
 
- $("saveBtn").disabled = true;
+ $("saveBtn").disabled=true;
  status("Saving product...");
 
  let result;
 
- if(editingId !== null){
-  result = await db.from("Product")
+ if(editingId!==null){
+  result=await db.from("Product")
    .update(product).eq("id",editingId);
  }else{
-  result = await db.from("Product")
+  result=await db.from("Product")
    .insert([product]);
  }
 
- $("saveBtn").disabled = false;
+ $("saveBtn").disabled=false;
 
  if(result.error){
-  status("Save failed: " + result.error.message);
+  status("Save failed: "+result.error.message);
   return;
  }
 
@@ -405,17 +401,16 @@ $("productForm").onsubmit = async event => {
  await loadProducts();
 };
 
-// DELETE PRODUCT
 async function deleteProduct(id){
  if(!confirm("Are you sure you want to delete this product?")){
   return;
  }
 
- const {error} = await db.from("Product")
+ const {error}=await db.from("Product")
   .delete().eq("id",id);
 
  if(error){
-  status("Delete failed: " + error.message);
+  status("Delete failed: "+error.message);
   return;
  }
 
@@ -423,18 +418,108 @@ async function deleteProduct(id){
  await loadProducts();
 }
 
-// REFRESH AND LOGOUT
-$("refreshBtn").onclick = loadProducts;
+// SUPPLIER MANAGEMENT
+async function loadSuppliers(){
+ const box=$("suppliers");
+ box.textContent="Loading suppliers...";
 
-$("logoutBtn").onclick = async () => {
+ const {data,error}=await db
+  .from("supplier_profiles")
+  .select("id,business_name,contact_name,phone,business_email,address,status,created_at")
+  .order("created_at",{ascending:false});
+
+ if(error){
+  box.textContent="Supplier loading error: "+error.message;
+  return;
+ }
+
+ box.replaceChildren();
+
+ if(!data || data.length===0){
+  box.textContent="No supplier registrations found.";
+  return;
+ }
+
+ data.forEach(s=>{
+  const card=document.createElement("div");
+  card.className="product";
+
+  const title=document.createElement("h3");
+  title.textContent=s.business_name || "Business";
+
+  const contact=document.createElement("p");
+  contact.textContent="Contact: "+(s.contact_name||"-");
+
+  const phone=document.createElement("p");
+  phone.textContent="Phone: "+(s.phone||"-");
+
+  const email=document.createElement("p");
+  email.textContent="Email: "+(s.business_email||"-");
+
+  const address=document.createElement("p");
+  address.textContent="Address: "+(s.address||"-");
+
+  const state=document.createElement("small");
+  state.textContent="Status: "+
+   String(s.status||"pending").toUpperCase();
+
+  card.append(title,contact,phone,email,address,state);
+
+  if(s.status==="pending"){
+   const approve=document.createElement("button");
+   approve.textContent="APPROVE";
+   approve.onclick=()=>setSupplierStatus(s.id,"approved");
+
+   const reject=document.createElement("button");
+   reject.className="danger";
+   reject.textContent="REJECT";
+   reject.onclick=()=>setSupplierStatus(s.id,"rejected");
+
+   card.append(approve,reject);
+  }
+
+  box.append(card);
+ });
+}
+
+async function setSupplierStatus(id,nextStatus){
+ const action=nextStatus==="approved"?"approve":"reject";
+
+ if(!confirm("Are you sure you want to "+action+" this supplier?")){
+  return;
+ }
+
+ const {error}=await db
+  .from("supplier_profiles")
+  .update({status:nextStatus})
+  .eq("id",id);
+
+ if(error){
+  status("Supplier update failed: "+error.message);
+  return;
+ }
+
+ status("Supplier "+nextStatus+" successfully.");
+ await loadSuppliers();
+}
+
+$("refreshSuppliersBtn").onclick=loadSuppliers;
+
+// REFRESH AND LOGOUT
+$("refreshBtn").onclick=async()=>{
+ await loadProducts();
+ await loadSuppliers();
+};
+
+$("logoutBtn").onclick=async()=>{
  await db.auth.signOut();
  resetForm();
  showOnly("loginPanel");
  status("Logged out successfully.");
 };
 
-// CHECK EXISTING SESSION
-db.auth.getSession().then(async ({data,error}) => {
+// EXISTING SESSION
+db.auth.getSession().then(async({data,error})=>{
  if(error || recoveryMode) return;
 
  if(data.session){
@@ -442,5 +527,12 @@ db.auth.getSession().then(async ({data,error}) => {
  }
 });
 </script>
+
 </body>
 </html>
+
+
+ 
+
+
+ 
