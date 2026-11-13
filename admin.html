@@ -1,4 +1,6 @@
 
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -62,7 +64,7 @@ small{color:#c6a65b}
  <div class="panel">
   <h2>LUxy Dashboard</h2>
   <p>Admin access verified.</p>
-  <button class="secondary" id="refreshBtn">REFRESH PRODUCTS</button>
+  <button class="secondary" id="refreshBtn">REFRESH ALL</button>
   <button class="secondary" id="logoutBtn">LOGOUT</button>
  </div>
 
@@ -86,9 +88,17 @@ small{color:#c6a65b}
 
  <div class="panel">
   <h2>Supplier Management</h2>
-  <p>Review and approve supplier registrations.</p>
+  <p>Review supplier registrations.</p>
   <button class="secondary" id="refreshSuppliersBtn">REFRESH SUPPLIERS</button>
   <div id="suppliers">Loading suppliers...</div>
+ </div>
+
+ <div class="panel">
+  <h2>Supplier Product Approval</h2>
+  <p>Review products submitted by approved suppliers.</p>
+  <p>Approved products will automatically be published in the LUxy Store.</p>
+  <button class="secondary" id="refreshSupplierProductsBtn">REFRESH SUPPLIER PRODUCTS</button>
+  <div id="supplierProducts">Loading supplier products...</div>
  </div>
 
 </section>
@@ -165,6 +175,7 @@ async function openDashboard(){
 
  await loadProducts();
  await loadSuppliers();
+ await loadSupplierProducts();
 }
 
 // LOGIN
@@ -268,7 +279,7 @@ $("resetBtn").onclick = async () => {
  setTimeout(()=>showOnly("loginPanel"),1200);
 };
 
-// LOAD PRODUCTS
+// LOAD STORE PRODUCTS
 async function loadProducts(){
  const container = $("products");
  container.textContent = "Loading products...";
@@ -418,7 +429,7 @@ async function deleteProduct(id){
  await loadProducts();
 }
 
-// SUPPLIER MANAGEMENT
+// SUPPLIER REGISTRATION MANAGEMENT
 async function loadSuppliers(){
  const box=$("suppliers");
  box.textContent="Loading suppliers...";
@@ -503,12 +514,130 @@ async function setSupplierStatus(id,nextStatus){
  await loadSuppliers();
 }
 
+// SUPPLIER PRODUCT APPROVAL
+async function loadSupplierProducts(){
+ const box=$("supplierProducts");
+ box.textContent="Loading supplier products...";
+
+ const {data,error}=await db
+  .from("supplier_products")
+  .select("*")
+  .order("created_at",{ascending:false});
+
+ if(error){
+  box.textContent="Supplier product loading error: "+error.message;
+  return;
+ }
+
+ const {data:suppliers,supError}=await db
+  .from("supplier_profiles")
+  .select("id,business_name");
+
+ if(supError){
+  box.textContent="Supplier details loading error: "+supError.message;
+  return;
+ }
+
+ const supplierNames=new Map(
+  (suppliers||[]).map(s=>[String(s.id),s.business_name])
+ );
+
+ box.replaceChildren();
+
+ if(!data || data.length===0){
+  box.textContent="No supplier products submitted yet.";
+  return;
+ }
+
+ data.forEach(p=>{
+  const card=document.createElement("div");
+  card.className="product";
+
+  const row=document.createElement("div");
+  row.className="productRow";
+
+  const img=document.createElement("img");
+  img.alt="Supplier product image";
+  img.src=validImageURL(p.image_url)?p.image_url:"";
+  img.onerror=()=>img.style.display="none";
+
+  const info=document.createElement("div");
+  info.className="productInfo";
+
+  const name=document.createElement("b");
+  name.textContent=p.product_name || "Untitled product";
+
+  const details=document.createElement("p");
+  details.textContent=
+   "₹"+p.price+" | Stock: "+p.stock+" | "+(p.category||"");
+
+  const supplier=document.createElement("small");
+  supplier.textContent="Supplier: "+
+   (supplierNames.get(String(p.supplier_id))||"Unknown");
+
+  const state=document.createElement("p");
+  state.textContent="Status: "+
+   String(p.status||"pending").toUpperCase();
+
+  info.append(name,details,supplier,state);
+  row.append(img,info);
+  card.append(row);
+
+  if(p.status==="pending"){
+   const approve=document.createElement("button");
+   approve.textContent="APPROVE & PUBLISH";
+   approve.onclick=()=>reviewSupplierProduct(p.id,"approve");
+
+   const reject=document.createElement("button");
+   reject.className="danger";
+   reject.textContent="REJECT";
+   reject.onclick=()=>reviewSupplierProduct(p.id,"reject");
+
+   card.append(approve,reject);
+  }
+
+  box.append(card);
+ });
+}
+
+async function reviewSupplierProduct(id,action){
+ const label=action==="approve"?"approve and publish":"reject";
+
+ if(!confirm("Are you sure you want to "+label+" this product?")){
+  return;
+ }
+
+ status("Processing supplier product...");
+
+ const {data,error}=await db.rpc(
+  "admin_review_supplier_product",
+  {
+   p_supplier_product_id:String(id),
+   p_action:action
+  }
+ );
+
+ if(error){
+  status("Review failed: "+error.message);
+  return;
+ }
+
+ status(action==="approve"
+  ?"Product approved and published to LUxy Store."
+  :"Supplier product rejected.");
+
+ await loadSupplierProducts();
+ await loadProducts();
+}
+
 $("refreshSuppliersBtn").onclick=loadSuppliers;
+$("refreshSupplierProductsBtn").onclick=loadSupplierProducts;
 
 // REFRESH AND LOGOUT
 $("refreshBtn").onclick=async()=>{
  await loadProducts();
  await loadSuppliers();
+ await loadSupplierProducts();
 };
 
 $("logoutBtn").onclick=async()=>{
@@ -532,7 +661,5 @@ db.auth.getSession().then(async({data,error})=>{
 </html>
 
 
- 
-
-
- 
+  
+  
