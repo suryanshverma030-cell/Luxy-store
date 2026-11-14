@@ -1,6 +1,5 @@
 
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -17,8 +16,8 @@ header{background:#080808;padding:22px;border-bottom:1px solid #b99a54}
 main{max-width:850px;margin:25px auto;padding:15px}
 .panel{background:#191919;border:1px solid #66542d;border-radius:12px;padding:20px;margin-bottom:20px}
 h2{color:#d6b76b}
-input,button{width:100%;padding:13px;margin:8px 0;border-radius:7px;font-size:15px}
-input{background:#101010;color:white;border:1px solid #76633b}
+input,button,select{width:100%;padding:13px;margin:8px 0;border-radius:7px;font-size:15px}
+input,select{background:#101010;color:white;border:1px solid #76633b}
 button{background:#c6a65b;color:#111;border:0;font-weight:bold;cursor:pointer}
 button:disabled{opacity:.5}
 .secondary{background:#292929;color:#e8d5a3;border:1px solid #76633b}
@@ -30,6 +29,10 @@ button:disabled{opacity:.5}
 .productRow{display:flex;gap:13px;align-items:center}
 .productInfo{flex:1;min-width:0;overflow-wrap:anywhere}
 small{color:#c6a65b}
+.orderCard{border:1px solid #66542d;border-radius:9px;padding:14px;margin:14px 0}
+.orderItem{border-top:1px solid #51452d;padding:12px 0}
+.orderMeta{color:#c6a65b;font-size:13px;overflow-wrap:anywhere}
+.statusText{color:#e4c77f}
 </style>
 </head>
 <body>
@@ -99,6 +102,14 @@ small{color:#c6a65b}
   <p>Approved products will automatically be published in the LUxy Store.</p>
   <button class="secondary" id="refreshSupplierProductsBtn">REFRESH SUPPLIER PRODUCTS</button>
   <div id="supplierProducts">Loading supplier products...</div>
+ </div>
+
+ <!-- CUSTOMER ORDER MANAGEMENT -->
+ <div class="panel">
+  <h2>Customer Order Management</h2>
+  <p>View customer orders, assign suppliers and manage dispatch.</p>
+  <button class="secondary" id="refreshOrdersBtn">REFRESH ORDERS</button>
+  <div id="ordersList">Orders will appear here.</div>
  </div>
 
 </section>
@@ -171,11 +182,11 @@ async function openDashboard(){
  }
 
  showOnly("dashboard");
- $("loginStatus").textContent = "";
 
  await loadProducts();
  await loadSuppliers();
  await loadSupplierProducts();
+ await loadOrders();
 }
 
 // LOGIN
@@ -529,7 +540,7 @@ async function loadSupplierProducts(){
   return;
  }
 
- const {data:suppliers,supError}=await db
+ const {data:suppliers,error:supError}=await db
   .from("supplier_profiles")
   .select("id,business_name");
 
@@ -630,16 +641,372 @@ async function reviewSupplierProduct(id,action){
  await loadProducts();
 }
 
+// CUSTOMER ORDER MANAGEMENT
+async function loadOrders(){
+ const box=$("ordersList");
+ box.textContent="Loading customer orders...";
+
+ const {data:orders,error}=await db
+  .from("orders")
+  .select("*")
+  .order("created_at",{ascending:false});
+
+ if(error){
+  box.textContent="Order loading error: "+error.message;
+  return;
+ }
+
+ box.replaceChildren();
+
+ if(!orders || orders.length===0){
+  box.textContent="No customer orders found yet.";
+  return;
+ }
+
+ const {data:items,error:itemError}=await db
+  .from("order_items")
+  .select("*")
+  .order("id",{ascending:true});
+
+ if(itemError){
+  box.textContent="Order items error: "+itemError.message;
+  return;
+ }
+
+ const {data:suppliers,error:supplierError}=await db
+  .from("supplier_profiles")
+  .select("id,business_name,status")
+  .eq("status","approved");
+
+ if(supplierError){
+  box.textContent="Supplier loading error: "+supplierError.message;
+  return;
+ }
+
+ const {data:dispatches,error:dispatchError}=await db
+  .from("supplier_dispatch")
+  .select("*");
+
+ if(dispatchError){
+  box.textContent="Dispatch loading error: "+dispatchError.message;
+  return;
+ }
+
+ const supplierList=suppliers||[];
+ const itemList=items||[];
+ const dispatchList=dispatches||[];
+
+ orders.forEach(order=>{
+  const card=document.createElement("div");
+  card.className="orderCard";
+
+  const heading=document.createElement("h3");
+  heading.textContent="Order #"+order.id;
+
+  const customer=document.createElement("p");
+  customer.textContent="Customer: "+order.customer_name;
+
+  const phone=document.createElement("p");
+  phone.textContent="Phone: "+order.customer_phone;
+
+  const address=document.createElement("p");
+  address.textContent="Address: "+order.shipping_address;
+
+  const amount=document.createElement("p");
+  amount.textContent="Total: ₹"+order.total_amount+
+   " | Payment: "+order.payment_status;
+
+  const date=document.createElement("p");
+  date.textContent="Created: "+
+   new Date(order.created_at).toLocaleString();
+
+  const currentStatus=document.createElement("p");
+  currentStatus.className="statusText";
+  currentStatus.textContent="Order status: "+
+   String(order.order_status||"pending").toUpperCase();
+
+  const statusSelect=document.createElement("select");
+
+  ["pending","confirmed","processing","shipped","delivered","cancelled"]
+   .forEach(value=>{
+    const option=document.createElement("option");
+    option.value=value;
+    option.textContent=value.toUpperCase();
+    if(value===order.order_status) option.selected=true;
+    statusSelect.append(option);
+   });
+
+  const statusButton=document.createElement("button");
+  statusButton.textContent="UPDATE ORDER STATUS";
+  statusButton.onclick=()=>updateOrderStatus(
+   order.id,statusSelect.value
+  );
+
+  card.append(
+   heading,customer,phone,address,amount,date,
+   currentStatus,statusSelect,statusButton
+  );
+
+  const headingItems=document.createElement("h3");
+  headingItems.textContent="Order Products";
+  card.append(headingItems);
+
+  const orderItems=itemList.filter(
+   item=>String(item.order_id)===String(order.id)
+  );
+
+  if(orderItems.length===0){
+   const none=document.createElement("p");
+   none.textContent="No items recorded for this order.";
+   card.append(none);
+  }
+
+  orderItems.forEach(item=>{
+   const itemBox=document.createElement("div");
+   itemBox.className="orderItem";
+
+   const itemName=document.createElement("b");
+   itemName.textContent=item.product_name;
+
+   const itemDetails=document.createElement("p");
+   itemDetails.textContent=
+    "Quantity: "+item.quantity+
+    " | Price: ₹"+item.unit_price+
+    " | Total: ₹"+item.line_total;
+
+   const itemState=document.createElement("p");
+   itemState.className="orderMeta";
+   itemState.textContent="Item status: "+item.item_status;
+
+   const supplierSelect=document.createElement("select");
+
+   const emptyOption=document.createElement("option");
+   emptyOption.value="";
+   emptyOption.textContent="Select approved supplier";
+   supplierSelect.append(emptyOption);
+
+   supplierList.forEach(s=>{
+    const option=document.createElement("option");
+    option.value=s.id;
+    option.textContent=s.business_name;
+
+    if(String(item.supplier_id)===String(s.id)){
+     option.selected=true;
+    }
+
+    supplierSelect.append(option);
+   });
+
+   const assignButton=document.createElement("button");
+   assignButton.textContent="ASSIGN SUPPLIER & CREATE DISPATCH";
+   assignButton.onclick=()=>assignSupplier(
+    item.id,supplierSelect.value
+   );
+
+   itemBox.append(
+    itemName,itemDetails,itemState,
+    supplierSelect,assignButton
+   );
+
+   const dispatch=dispatchList.find(
+    d=>String(d.order_item_id)===String(item.id)
+   );
+
+   if(dispatch){
+    const dispatchInfo=document.createElement("p");
+    dispatchInfo.className="orderMeta";
+    dispatchInfo.textContent=
+     "Dispatch: "+dispatch.dispatch_status+
+     " | Courier: "+(dispatch.courier_name||"-")+
+     " | Tracking: "+(dispatch.tracking_number||"-");
+
+    const courierInput=document.createElement("input");
+    courierInput.placeholder="Courier name";
+    courierInput.value=dispatch.courier_name||"";
+
+    const trackingInput=document.createElement("input");
+    trackingInput.placeholder="Tracking number";
+    trackingInput.value=dispatch.tracking_number||"";
+
+    const dispatchSelect=document.createElement("select");
+
+    ["pending","processing","shipped","delivered","cancelled"]
+     .forEach(value=>{
+      const option=document.createElement("option");
+      option.value=value;
+      option.textContent=value.toUpperCase();
+
+      if(value===dispatch.dispatch_status){
+       option.selected=true;
+      }
+
+      dispatchSelect.append(option);
+     });
+
+    const saveDispatch=document.createElement("button");
+    saveDispatch.textContent="SAVE DISPATCH DETAILS";
+
+    saveDispatch.onclick=()=>updateDispatch(
+     dispatch.id,
+     dispatchSelect.value,
+     courierInput.value.trim(),
+     trackingInput.value.trim()
+    );
+
+    itemBox.append(
+     dispatchInfo,courierInput,trackingInput,
+     dispatchSelect,saveDispatch
+    );
+   }
+
+   card.append(itemBox);
+  });
+
+  box.append(card);
+ });
+}
+
+async function assignSupplier(itemId,supplierId){
+ if(!supplierId){
+  status("Select an approved supplier first.");
+  return;
+ }
+
+ if(!confirm("Assign this product to the selected supplier?")){
+  return;
+ }
+
+ const {data:existing,error:checkError}=await db
+  .from("supplier_dispatch")
+  .select("id")
+  .eq("order_item_id",itemId)
+  .maybeSingle();
+
+ if(checkError){
+  status("Dispatch check failed: "+checkError.message);
+  return;
+ }
+
+ const {data:supplier,error:supplierError}=await db
+  .from("supplier_profiles")
+  .select("id")
+  .eq("id",supplierId)
+  .eq("status","approved")
+  .maybeSingle();
+
+ if(supplierError || !supplier){
+  status("Selected supplier is not approved.");
+  return;
+ }
+
+ const {error:updateError}=await db
+  .from("order_items")
+  .update({
+   supplier_id:supplierId,
+   item_status:"assigned"
+  })
+  .eq("id",itemId);
+
+ if(updateError){
+  status("Supplier assignment failed: "+updateError.message);
+  return;
+ }
+
+ let dispatchResult;
+
+ if(existing){
+  dispatchResult=await db
+   .from("supplier_dispatch")
+   .update({supplier_id:supplierId})
+   .eq("id",existing.id);
+ }else{
+  dispatchResult=await db
+   .from("supplier_dispatch")
+   .insert([{
+    order_item_id:itemId,
+    supplier_id:supplierId,
+    dispatch_status:"pending"
+   }]);
+ }
+
+ if(dispatchResult.error){
+  status("Assignment saved, but dispatch creation failed: "+
+   dispatchResult.error.message);
+  await loadOrders();
+  return;
+ }
+
+ status("Supplier assigned and dispatch record saved.");
+ await loadOrders();
+}
+
+async function updateOrderStatus(orderId,nextStatus){
+ if(!confirm("Update this order status to "+nextStatus+"?")){
+  return;
+ }
+
+ const {error}=await db
+  .from("orders")
+  .update({order_status:nextStatus})
+  .eq("id",orderId);
+
+ if(error){
+  status("Order status update failed: "+error.message);
+  return;
+ }
+
+ status("Order status updated.");
+ await loadOrders();
+}
+
+async function updateDispatch(
+ dispatchId,nextStatus,courier,tracking
+){
+ if(!confirm("Save dispatch and tracking details?")){
+  return;
+ }
+
+ const updateData={
+  dispatch_status:nextStatus,
+  courier_name:courier||null,
+  tracking_number:tracking||null
+ };
+
+ if(nextStatus==="shipped"){
+  updateData.dispatched_at=new Date().toISOString();
+ }
+
+ if(nextStatus==="delivered"){
+  updateData.delivered_at=new Date().toISOString();
+ }
+
+ const {error}=await db
+  .from("supplier_dispatch")
+  .update(updateData)
+  .eq("id",dispatchId);
+
+ if(error){
+  status("Dispatch update failed: "+error.message);
+  return;
+ }
+
+ status("Dispatch details updated.");
+ await loadOrders();
+}
+
+// REFRESH
 $("refreshSuppliersBtn").onclick=loadSuppliers;
 $("refreshSupplierProductsBtn").onclick=loadSupplierProducts;
+$("refreshOrdersBtn").onclick=loadOrders;
 
-// REFRESH AND LOGOUT
 $("refreshBtn").onclick=async()=>{
  await loadProducts();
  await loadSuppliers();
  await loadSupplierProducts();
+ await loadOrders();
 };
 
+// LOGOUT
 $("logoutBtn").onclick=async()=>{
  await db.auth.signOut();
  resetForm();
@@ -656,10 +1023,14 @@ db.auth.getSession().then(async({data,error})=>{
  }
 });
 </script>
-
 </body>
 </html>
 
 
+   
+   
+
+
   
-  
+
+
