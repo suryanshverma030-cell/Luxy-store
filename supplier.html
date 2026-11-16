@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,295 +9,415 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#090909;color:#f5f0df;font-family:Arial,sans-serif}
-header{padding:22px;text-align:center;border-bottom:1px solid #b99a48}
-.logo{font-size:30px;letter-spacing:7px;color:#d6b65c}
-.sub{color:#aaa;font-size:12px;letter-spacing:3px}
-main{max-width:650px;margin:25px auto;padding:18px}
-.card{background:#151515;border:1px solid #514323;border-radius:12px;padding:20px;margin-bottom:18px}
-h2{color:#d6b65c;margin-top:0}
-input,textarea,select{width:100%;padding:13px;margin:8px 0 14px;background:#080808;border:1px solid #555;color:white;border-radius:6px}
-button{padding:13px 18px;background:#c5a34c;color:#090909;border:0;border-radius:6px;font-weight:bold;cursor:pointer;margin:5px 4px 5px 0}
-.secondary{background:#333;color:white}
+body{margin:0;background:#101010;color:#eee;font-family:Arial,sans-serif}
+header{background:#080808;padding:20px;text-align:center;border-bottom:1px solid #b99a50}
+header h1{color:#d6b65e;letter-spacing:4px;margin:0}
+header p{color:#aaa;font-size:12px}
+main{max-width:850px;margin:25px auto;padding:15px}
+.card{background:#1b1b1b;border:1px solid #38322a;border-radius:12px;padding:18px;margin-bottom:18px}
+h2{color:#d6b65e;font-size:19px}
+input,textarea,select{width:100%;padding:12px;margin:7px 0 14px;background:#101010;border:1px solid #555;color:white;border-radius:6px}
+button{background:#c5a34e;color:#111;border:0;padding:12px 17px;border-radius:6px;font-weight:bold;cursor:pointer;margin:5px 3px 5px 0}
+button.secondary{background:#333;color:#fff}
+button:disabled{opacity:.5}
+.small{color:#aaa;font-size:13px}
+.status{color:#e2c36c;font-weight:bold}
+.item{border-top:1px solid #444;padding:13px 0}
 .hidden{display:none}
-#message{padding:12px;border-radius:6px;background:#242424;margin:12px 0;white-space:pre-wrap}
-.item{border-bottom:1px solid #444;padding:12px 0}
-small{color:#bbb}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:550px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+
 <header>
- <div class="logo">LUxy</div>
- <div class="sub">SUPPLIER PORTAL</div>
+<h1>LUxy</h1>
+<p>SUPPLIER MANAGEMENT PORTAL</p>
 </header>
 
 <main>
- <div id="message">Welcome to LUxy Supplier Portal.</div>
 
- <section class="card" id="authBox">
-  <h2>Supplier Account</h2>
-  <input id="email" type="email" placeholder="Business email">
-  <input id="password" type="password" placeholder="Password">
-  <button onclick="register()">Create Account</button>
-  <button class="secondary" onclick="login()">Login</button>
- </section>
+<section id="authSection" class="card">
+<h2>Supplier Login</h2>
+<input id="email" type="email" placeholder="Email address">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<button class="secondary" onclick="showRegister()">Register</button>
 
- <section class="card hidden" id="profileBox">
-  <h2>Business Registration</h2>
-  <p><small>Submit your business details for LUxy admin approval.</small></p>
-  <input id="business" placeholder="Business name">
-  <input id="contact" placeholder="Contact person name">
-  <input id="phone" type="tel" placeholder="Phone number">
-  <input id="businessEmail" type="email" placeholder="Business email">
-  <textarea id="address" placeholder="Business address"></textarea>
-  <button onclick="saveProfile()">Submit for Approval</button>
- </section>
+<div id="registerBox" class="hidden">
+<h2>Supplier Registration</h2>
+<input id="businessName" placeholder="Business name">
+<input id="contactName" placeholder="Contact person name">
+<input id="phone" placeholder="Phone number">
+<input id="businessEmail" type="email" placeholder="Business email">
+<textarea id="address" placeholder="Business address"></textarea>
+<button onclick="registerSupplier()">Create Supplier Account</button>
+</div>
+<p id="authMessage" class="small"></p>
+</section>
 
- <section class="card hidden" id="dashboard">
-  <h2>Supplier Dashboard</h2>
-  <p id="supplierStatus"></p>
-  <button class="secondary" onclick="logout()">Logout</button>
- </section>
+<section id="dashboard" class="hidden">
+<div class="card">
+<h2>Supplier Dashboard</h2>
+<p id="welcome"></p>
+<p>Account status: <span id="accountStatus" class="status">Loading...</span></p>
+<button class="secondary" onclick="logout()">Logout</button>
+</div>
 
- <section class="card hidden" id="productBox">
-  <h2>Submit New Product</h2>
-  <input id="pname" placeholder="Product name">
-  <textarea id="description" placeholder="Product description"></textarea>
-  <input id="price" type="number" min="0" placeholder="Price (₹)">
-  <input id="category" placeholder="Category">
-  <input id="image" type="url" placeholder="Product image URL">
-  <input id="stock" type="number" min="0" placeholder="Available stock">
-  <button onclick="addProduct()">Submit Product</button>
-  <p><small>Products remain pending until admin approval.</small></p>
- </section>
+<div id="pendingBox" class="card hidden">
+<h2>Account Under Review</h2>
+<p>Your supplier registration is pending admin approval.</p>
+<p class="small">You can access product and order services after approval.</p>
+</div>
 
- <section class="card hidden" id="myProducts">
-  <h2>My Submitted Products</h2>
-  <div id="productList"></div>
- </section>
+<div id="approvedArea" class="hidden">
+
+<div class="card">
+<h2>Add New Product</h2>
+<input id="productName" placeholder="Product name">
+<textarea id="description" placeholder="Product description"></textarea>
+<div class="grid">
+<div><input id="price" type="number" min="0" placeholder="Price"></div>
+<div><input id="stock" type="number" min="0" placeholder="Stock quantity"></div>
+</div>
+<input id="category" placeholder="Category">
+<input id="imageUrl" type="url" placeholder="Product image URL">
+<button onclick="submitProduct()">Submit Product for Approval</button>
+<p id="productMessage" class="small"></p>
+</div>
+
+<div class="card">
+<h2>My Products</h2>
+<div id="productsList">Loading products...</div>
+</div>
+
+<div class="card">
+<h2>Assigned Customer Orders</h2>
+<p class="small">Orders assigned to your supplier account by LUxy Admin will appear here.</p>
+<button onclick="loadOrders()">Refresh Orders</button>
+<div id="ordersList">Loading orders...</div>
+</div>
+
+</div>
+</section>
+
 </main>
 
 <script>
 const SUPABASE_URL = "https://gnbwmqxhahtwujplqzoc.supabase.co";
 const SUPABASE_KEY = "sb_publishable_eagohtv5xeViT-ARla4kUQ_CWkGp3iD";
 
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 let currentUser = null;
 let supplierProfile = null;
 
-const $ = id => document.getElementById(id);
+const el = id => document.getElementById(id);
+const msg = (id,text) => el(id).textContent = text;
+const safe = value => String(value ?? "").replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
 
-function message(text){
- $("message").textContent = text;
-}
-
-function show(id, yes=true){
- $(id).classList.toggle("hidden",!yes);
-}
-
-async function register(){
- const email=$("email").value.trim();
- const password=$("password").value;
-
- if(!email || password.length<6){
-  message("Enter a valid email and password of at least 6 characters.");
-  return;
- }
-
- const {data,error}=await db.auth.signUp({email,password});
-
- if(error){message(error.message);return;}
-
- if(data.session){
-  currentUser=data.user;
-  show("authBox",false);
-  show("profileBox",true);
-  message("Account created. Complete your business registration.");
- }else{
-  message("Account created. Check your email to confirm your account, then log in and complete your business registration.");
- }
+function showRegister(){
+ el("registerBox").classList.remove("hidden");
 }
 
 async function login(){
- const email=$("email").value.trim();
- const password=$("password").value;
+ const email=el("email").value.trim();
+ const password=el("password").value;
+ if(!email || !password){msg("authMessage","Enter email and password.");return;}
 
- const {data,error}=await db.auth.signInWithPassword({email,password});
-
- if(error){message(error.message);return;}
-
- currentUser=data.user;
- await loadSupplier();
+ const {error}=await db.auth.signInWithPassword({email,password});
+ if(error){msg("authMessage",error.message);return;}
+ await loadDashboard();
 }
 
-async function saveProfile(){
- if(!currentUser){message("Please login first.");return;}
+async function registerSupplier(){
+ const email=el("email").value.trim();
+ const password=el("password").value;
+ const business=el("businessName").value.trim();
+ const contact=el("contactName").value.trim();
+ const phone=el("phone").value.trim();
+ const businessEmail=el("businessEmail").value.trim();
+ const address=el("address").value.trim();
 
- const business=$("business").value.trim();
- const contact=$("contact").value.trim();
- const phone=$("phone").value.trim();
- const businessEmail=$("businessEmail").value.trim();
- const address=$("address").value.trim();
+ if(!email || !password || !business || !contact || !phone || !address){
+ msg("authMessage","Please complete all required fields.");return;
+ }
+ if(password.length<6){msg("authMessage","Password must have at least 6 characters.");return;}
 
- if(!business || !contact || !phone || !businessEmail || !address){
-  message("Please fill all business details.");
-  return;
+ const {data,error}=await db.auth.signUp({email,password});
+ if(error){msg("authMessage",error.message);return;}
+
+ if(!data.user){
+ msg("authMessage","Registration submitted. Check your email to confirm your account.");
+ return;
  }
 
- const {error}=await db.from("supplier_profiles").insert({
-  user_id:currentUser.id,
-  business_name:business,
-  contact_name:contact,
-  phone,
-  business_email:businessEmail,
-  address,
-  status:"pending"
+ if(!data.session){
+ msg("authMessage","Account created. Confirm your email, then log in.");
+ return;
+ }
+
+ const {error:profileError}=await db.from("supplier_profiles").insert({
+ user_id:data.user.id,
+ business_name:business,
+ contact_name:contact,
+ phone:phone,
+ business_email:businessEmail || email,
+ address:address,
+ status:"pending"
  });
 
- if(error){
-  message(error.message);
-  return;
+ if(profileError){
+ msg("authMessage","Account created, but profile could not be saved: "+profileError.message);
+ return;
  }
 
- message("Business profile submitted successfully. Wait for admin approval.");
- await loadSupplier();
+ msg("authMessage","Registration submitted successfully. Waiting for admin approval.");
+ await loadDashboard();
 }
 
-async function loadSupplier(){
- const {data,error}=await db
-  .from("supplier_profiles")
-  .select("*")
-  .eq("user_id",currentUser.id)
-  .maybeSingle();
+async function loadDashboard(){
+ const {data:{user},error}=await db.auth.getUser();
+ if(error || !user){
+ el("authSection").classList.remove("hidden");
+ el("dashboard").classList.add("hidden");
+ return;
+ }
 
- if(error){message(error.message);return;}
+ currentUser=user;
+ el("authSection").classList.add("hidden");
+ el("dashboard").classList.remove("hidden");
+ msg("welcome","Logged in as "+user.email);
 
- show("authBox",false);
+ const {data,error:profileError}=await db
+ .from("supplier_profiles")
+ .select("*")
+ .eq("user_id",user.id)
+ .maybeSingle();
+
+ if(profileError){
+ msg("accountStatus","Profile error: "+profileError.message);
+ return;
+ }
 
  if(!data){
-  supplierProfile=null;
-  show("profileBox",true);
-  show("dashboard",false);
-  show("productBox",false);
-  show("myProducts",false);
-  message("Complete your supplier registration.");
-  return;
+ msg("accountStatus","Supplier profile not found");
+ return;
  }
 
  supplierProfile=data;
- show("profileBox",false);
- show("dashboard",true);
+ msg("accountStatus",data.status.toUpperCase());
 
  if(data.status==="approved"){
-  $("supplierStatus").textContent="Status: APPROVED";
-  show("productBox",true);
-  show("myProducts",true);
-  await loadProducts();
+ el("pendingBox").classList.add("hidden");
+ el("approvedArea").classList.remove("hidden");
+ await loadProducts();
+ await loadOrders();
  }else{
-  $("supplierStatus").textContent="Status: "+data.status.toUpperCase()+" — Waiting for admin approval.";
-  show("productBox",false);
-  show("myProducts",false);
+ el("approvedArea").classList.add("hidden");
+ el("pendingBox").classList.remove("hidden");
  }
-
- message("Welcome to your LUxy Supplier Dashboard.");
 }
 
-async function addProduct(){
- if(!supplierProfile || supplierProfile.status!=="approved"){
-  message("Your supplier account is not approved yet.");
-  return;
+async function submitProduct(){
+ if(!supplierProfile || supplierProfile.status!=="approved")return;
+
+ const name=el("productName").value.trim();
+ const description=el("description").value.trim();
+ const price=Number(el("price").value);
+ const stock=Number(el("stock").value);
+ const category=el("category").value.trim();
+ const image=el("imageUrl").value.trim();
+
+ if(!name || !category || !Number.isFinite(price) || price<=0 ||
+ !Number.isInteger(stock) || stock<0){
+ msg("productMessage","Enter valid product details.");return;
  }
 
- const product_name=$("pname").value.trim();
- const description=$("description").value.trim();
- const price=Number($("price").value);
- const category=$("category").value.trim();
- const image_url=$("image").value.trim();
- const stock=Number($("stock").value);
-
- if(!product_name || !category || $("price").value==="" || price<0 || $("stock").value==="" || !Number.isInteger(stock) || stock<0){
-  message("Enter valid product name, category, price and stock.");
-  return;
- }
-
- if(image_url && !/^https?:\/\//i.test(image_url)){
-  message("Enter a valid image URL.");
-  return;
+ if(image && !/^https?:\/\//i.test(image)){
+ msg("productMessage","Image must use a valid HTTP or HTTPS URL.");return;
  }
 
  const {error}=await db.from("supplier_products").insert({
-  supplier_id:supplierProfile.id,
-  product_name,
-  description,
-  price,
-  category,
-  image_url:image_url || null,
-  stock,
-  status:"pending"
+ supplier_id:supplierProfile.id,
+ product_name:name,
+ description:description,
+ price:price,
+ category:category,
+ image_url:image || null,
+ stock:stock,
+ status:"pending"
  });
 
- if(error){message(error.message);return;}
+ if(error){msg("productMessage",error.message);return;}
 
- message("Product submitted. It is waiting for admin approval.");
-
- ["pname","description","price","category","image","stock"].forEach(id=>$(id).value="");
-
+ msg("productMessage","Product submitted for admin approval.");
+ ["productName","description","price","stock","category","imageUrl"]
+ .forEach(id=>el(id).value="");
  await loadProducts();
 }
 
 async function loadProducts(){
- const {data,error}=await db
-  .from("supplier_products")
-  .select("*")
-  .eq("supplier_id",supplierProfile.id)
-  .order("created_at",{ascending:false});
+ const box=el("productsList");
+ box.textContent="Loading...";
 
- if(error){message(error.message);return;}
+ const {data,error}=await db.from("supplier_products")
+ .select("id,product_name,price,category,stock,status,created_at")
+ .eq("supplier_id",supplierProfile.id)
+ .order("created_at",{ascending:false});
 
- $("productList").replaceChildren();
+ if(error){box.textContent=error.message;return;}
+ if(!data || !data.length){box.textContent="No products submitted yet.";return;}
 
- if(!data || data.length===0){
-  $("productList").textContent="No products submitted yet.";
-  return;
+ box.innerHTML=data.map(p=>`
+ <div class="item">
+ <strong>${safe(p.product_name)}</strong>
+ <p>Price: ₹${safe(p.price)} | Stock: ${safe(p.stock)}</p>
+ <p>Category: ${safe(p.category)}</p>
+ <p>Status: <span class="status">${safe(p.status).toUpperCase()}</span></p>
+ </div>`).join("");
+}
+
+async function loadOrders(){
+ const box=el("ordersList");
+ box.textContent="Loading assigned orders...";
+
+ if(!supplierProfile)return;
+
+ const {data:dispatches,error}=await db
+ .from("supplier_dispatch")
+ .select("id,order_item_id,supplier_id,dispatch_status,tracking_number,courier_name,dispatched_at,delivered_at,created_at")
+ .eq("supplier_id",supplierProfile.id)
+ .order("created_at",{ascending:false});
+
+ if(error){box.textContent="Order access error: "+error.message;return;}
+ if(!dispatches || !dispatches.length){
+ box.textContent="No dispatch assignments yet.";
+ return;
  }
 
- data.forEach(p=>{
-  const item=document.createElement("div");
-  item.className="item";
+ const itemIds=[...new Set(dispatches.map(d=>d.order_item_id).filter(Boolean))];
 
-  const name=document.createElement("strong");
-  name.textContent=p.product_name;
+ const {data:items,error:itemError}=await db
+ .from("order_items")
+ .select("id,order_id,product_id,product_name,unit_price,quantity,line_total,item_status")
+ .in("id",itemIds);
 
-  const details=document.createElement("p");
-  details.textContent="₹"+p.price+" | Stock: "+p.stock;
+ if(itemError){box.textContent="Order item error: "+itemError.message;return;}
 
-  const status=document.createElement("small");
-  status.textContent="Status: "+p.status.toUpperCase();
+ const itemMap={};
+ (items||[]).forEach(i=>itemMap[i.id]=i);
 
-  item.append(name,details,status);
-  $("productList").appendChild(item);
+ const orderIds=[...new Set((items||[]).map(i=>i.order_id).filter(Boolean))];
+
+ let orders=[];
+ if(orderIds.length){
+ const {data,error:orderError}=await db
+ .from("orders")
+ .select("id,customer_name,customer_email,customer_phone,shipping_address,total_amount,payment_method,payment_status,order_status,created_at")
+ .in("id",orderIds);
+
+ if(orderError){box.textContent="Customer order access error: "+orderError.message;return;}
+ orders=data||[];
+ }
+
+ const orderMap={};
+ orders.forEach(o=>orderMap[o.id]=o);
+
+ box.innerHTML=dispatches.map(d=>{
+ const item=itemMap[d.order_item_id];
+ const order=item ? orderMap[item.order_id] : null;
+
+ if(!item || !order){
+ return `<div class="item">Assignment ${safe(d.id)}<p class="small">Order details unavailable. Check database permissions.</p></div>`;
+ }
+
+ return `
+ <div class="item">
+ <h3>${safe(item.product_name)}</h3>
+ <p>Order ID: ${safe(order.id)}</p>
+ <p>Quantity: ${safe(item.quantity)} | Item total: ₹${safe(item.line_total)}</p>
+ <p><strong>Customer:</strong> ${safe(order.customer_name)}</p>
+ <p><strong>Email:</strong> ${safe(order.customer_email)}</p>
+ <p><strong>Phone:</strong> ${safe(order.customer_phone)}</p>
+ <p><strong>Delivery address:</strong> ${safe(order.shipping_address)}</p>
+ <p><strong>Order status:</strong> ${safe(order.order_status)}</p>
+ <p><strong>Payment status:</strong> ${safe(order.payment_status)}</p>
+ <p><strong>Dispatch status:</strong> <span class="status">${safe(d.dispatch_status)}</span></p>
+
+ <label>Courier name</label>
+ <input id="courier_${safe(d.id)}" value="${safe(d.courier_name||"")}" placeholder="Courier company">
+
+ <label>Tracking number</label>
+ <input id="tracking_${safe(d.id)}" value="${safe(d.tracking_number||"")}" placeholder="Tracking number">
+
+ <label>Dispatch status</label>
+ <select id="status_${safe(d.id)}">
+ <option value="pending">Pending</option>
+ <option value="processing">Processing</option>
+ <option value="shipped">Shipped</option>
+ <option value="delivered">Delivered</option>
+ </select>
+
+ <button onclick="updateDispatch('${safe(d.id)}')">Save Dispatch Details</button>
+ </div>`;
+ }).join("");
+
+ dispatches.forEach(d=>{
+ const select=el("status_"+d.id);
+ if(select)select.value=d.dispatch_status||"pending";
  });
+}
+
+async function updateDispatch(id){
+ const courier=el("courier_"+id).value.trim();
+ const tracking=el("tracking_"+id).value.trim();
+ const status=el("status_"+id).value;
+
+ const allowed=["pending","processing","shipped","delivered"];
+ if(!allowed.includes(status)){alert("Invalid dispatch status.");return;}
+
+ const update={
+ courier_name:courier || null,
+ tracking_number:tracking || null,
+ dispatch_status:status
+ };
+
+ if(status==="shipped")update.dispatched_at=new Date().toISOString();
+ if(status==="delivered")update.delivered_at=new Date().toISOString();
+
+ const {error}=await db.from("supplier_dispatch")
+ .update(update)
+ .eq("id",id)
+ .eq("supplier_id",supplierProfile.id);
+
+ if(error){alert("Update failed: "+error.message);return;}
+
+ alert("Dispatch details updated.");
+ await loadOrders();
 }
 
 async function logout(){
  await db.auth.signOut();
  currentUser=null;
  supplierProfile=null;
- show("authBox",true);
- show("profileBox",false);
- show("dashboard",false);
- show("productBox",false);
- show("myProducts",false);
- message("You have logged out.");
+ el("dashboard").classList.add("hidden");
+ el("authSection").classList.remove("hidden");
+ msg("authMessage","Logged out.");
 }
 
-db.auth.getSession().then(async ({data})=>{
- if(data.session){
-  currentUser=data.session.user;
-  await loadSupplier();
+db.auth.onAuthStateChange((event,session)=>{
+ if(session && !currentUser){
+ setTimeout(()=>loadDashboard(),0);
  }
 });
+
+(async()=>{
+ const {data:{session}}=await db.auth.getSession();
+ if(session)await loadDashboard();
+})();
 </script>
 </body>
 </html>
