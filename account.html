@@ -1,0 +1,403 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LUxy | My Account</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eeeae0;color:#171717;font-family:Arial,sans-serif}
+header{background:#111;color:#d4b66a;padding:22px;text-align:center}
+header h1{font-family:Georgia,serif;font-size:36px;letter-spacing:4px;margin:0}
+header p{font-size:11px;letter-spacing:3px}
+main{max-width:750px;margin:25px auto;padding:15px}
+.card{background:white;padding:22px;margin-bottom:18px;border:1px solid #ddd}
+h2{font-family:Georgia,serif;font-weight:normal}
+input,select,textarea{width:100%;padding:13px;margin:7px 0 15px;border:1px solid #ccc;background:#fafafa;font-size:15px}
+button{background:#111;color:#d4b66a;border:0;padding:13px 18px;margin:5px 4px 5px 0;cursor:pointer}
+.secondary{background:#ddd;color:#111}
+.danger{background:#8d2525;color:white}
+.small{font-size:13px;color:#777}
+.hidden{display:none}
+.address{border:1px solid #ddd;padding:15px;margin:12px 0}
+.status{color:#94742e;font-weight:bold}
+</style>
+</head>
+<body>
+
+<header>
+<h1>LUxy</h1>
+<p>MY ACCOUNT</p>
+</header>
+
+<main>
+
+<section id="authSection" class="card">
+<h2>Welcome to LUxy</h2>
+
+<div id="loginBox">
+<h3>Customer Login</h3>
+<input id="loginEmail" type="email" placeholder="Email address">
+<input id="loginPassword" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<button class="secondary" onclick="showSignup()">Create Account</button>
+</div>
+
+<div id="signupBox" class="hidden">
+<h3>Create Customer Account</h3>
+<input id="signupName" placeholder="Full name">
+<input id="signupPhone" type="tel" placeholder="Phone number">
+<input id="signupEmail" type="email" placeholder="Email address">
+<input id="signupPassword" type="password" placeholder="Password (minimum 6 characters)">
+<button onclick="signup()">Register</button>
+<button class="secondary" onclick="showLogin()">Back to Login</button>
+</div>
+
+<p id="authMessage" class="small"></p>
+</section>
+
+<section id="accountSection" class="hidden">
+
+<div class="card">
+<h2>My Account</h2>
+<p id="customerEmail" class="small"></p>
+<button class="secondary" onclick="logout()">Logout</button>
+</div>
+
+<div class="card">
+<h2>My Profile</h2>
+<label>Full Name</label>
+<input id="profileName" placeholder="Full name">
+<label>Phone Number</label>
+<input id="profilePhone" type="tel" placeholder="Phone number">
+<button onclick="saveProfile()">Save Profile</button>
+<p id="profileMessage" class="small"></p>
+</div>
+
+<div class="card">
+<h2>Saved Delivery Addresses</h2>
+<div id="addressList">Loading...</div>
+</div>
+
+<div class="card">
+<h2>Add New Address</h2>
+<input id="addressLabel" placeholder="Address label (Home / Work)">
+<input id="recipientName" placeholder="Recipient name">
+<input id="addressPhone" type="tel" placeholder="Phone number">
+<input id="line1" placeholder="House number, street, area">
+<input id="line2" placeholder="Landmark (optional)">
+<input id="city" placeholder="City">
+<input id="state" placeholder="State">
+<input id="postal" placeholder="PIN code">
+<label>
+<input id="defaultAddress" type="checkbox" style="width:auto">
+Set as default address
+</label>
+<br>
+<button onclick="addAddress()">Save Address</button>
+<p id="addressMessage" class="small"></p>
+</div>
+
+</section>
+</main>
+
+<script>
+const SUPABASE_URL="https://gnbwmqxhahtwujplqzoc.supabase.co";
+const SUPABASE_KEY="sb_publishable_eagohtv5xeViT-ARla4kUQ_CWkGp3iD";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let currentUser=null;
+
+const el=id=>document.getElementById(id);
+const message=(id,text)=>el(id).textContent=text;
+
+function showSignup(){
+el("loginBox").classList.add("hidden");
+el("signupBox").classList.remove("hidden");
+message("authMessage","");
+}
+
+function showLogin(){
+el("signupBox").classList.add("hidden");
+el("loginBox").classList.remove("hidden");
+message("authMessage","");
+}
+
+async function signup(){
+const name=el("signupName").value.trim();
+const phone=el("signupPhone").value.trim();
+const email=el("signupEmail").value.trim();
+const password=el("signupPassword").value;
+
+if(!name||!phone||!email||!password){
+message("authMessage","Please fill all fields.");
+return;
+}
+
+if(password.length<6){
+message("authMessage","Password must contain at least 6 characters.");
+return;
+}
+
+const {data,error}=await db.auth.signUp({
+email,password,
+options:{data:{full_name:name,phone:phone}}
+});
+
+if(error){
+message("authMessage",error.message);
+return;
+}
+
+if(!data.user){
+message("authMessage","Registration submitted. Check your email.");
+return;
+}
+
+if(!data.session){
+message("authMessage","Account created. Please verify your email, then log in.");
+return;
+}
+
+currentUser=data.user;
+
+const {error:profileError}=await db.from("customer_profiles").upsert({
+user_id:currentUser.id,
+full_name:name,
+phone:phone
+});
+
+if(profileError){
+message("authMessage","Account created, but profile save failed: "+profileError.message);
+return;
+}
+
+await loadAccount();
+}
+
+async function login(){
+const email=el("loginEmail").value.trim();
+const password=el("loginPassword").value;
+
+if(!email||!password){
+message("authMessage","Enter email and password.");
+return;
+}
+
+const {error}=await db.auth.signInWithPassword({email,password});
+
+if(error){
+message("authMessage",error.message);
+return;
+}
+
+await loadAccount();
+}
+
+async function loadAccount(){
+const {data:{user},error}=await db.auth.getUser();
+
+if(error||!user){
+message("authMessage","Please log in again.");
+return;
+}
+
+currentUser=user;
+
+el("authSection").classList.add("hidden");
+el("accountSection").classList.remove("hidden");
+message("customerEmail","Logged in as: "+user.email);
+
+const {data,error:profileError}=await db.from("customer_profiles")
+.select("*").eq("user_id",user.id).maybeSingle();
+
+if(profileError){
+message("profileMessage",profileError.message);
+return;
+}
+
+if(data){
+el("profileName").value=data.full_name||"";
+el("profilePhone").value=data.phone||"";
+}else{
+el("profileName").value=user.user_metadata?.full_name||"";
+el("profilePhone").value=user.user_metadata?.phone||"";
+}
+
+await loadAddresses();
+}
+
+async function saveProfile(){
+if(!currentUser)return;
+
+const name=el("profileName").value.trim();
+const phone=el("profilePhone").value.trim();
+
+if(!name||!phone){
+message("profileMessage","Enter name and phone.");
+return;
+}
+
+const {error}=await db.from("customer_profiles").upsert({
+user_id:currentUser.id,
+full_name:name,
+phone:phone
+});
+
+if(error){
+message("profileMessage",error.message);
+return;
+}
+
+message("profileMessage","Profile saved successfully.");
+}
+
+async function addAddress(){
+if(!currentUser)return;
+
+const name=el("recipientName").value.trim();
+const phone=el("addressPhone").value.trim();
+const line1=el("line1").value.trim();
+const city=el("city").value.trim();
+const state=el("state").value.trim();
+const postal=el("postal").value.trim();
+
+if(!name||!phone||!line1||!city||!state||!postal){
+message("addressMessage","Please complete all required address fields.");
+return;
+}
+
+if(!/^[0-9]{6}$/.test(postal)){
+message("addressMessage","Enter a valid 6-digit PIN code.");
+return;
+}
+
+const {data:existing,error:existingError}=await db.from("customer_addresses")
+.select("id").eq("user_id",currentUser.id).limit(1);
+
+if(existingError){
+message("addressMessage",existingError.message);
+return;
+}
+
+const makeDefault=el("defaultAddress").checked || !existing?.length;
+
+if(makeDefault){
+const {error:clearError}=await db.from("customer_addresses")
+.update({is_default:false}).eq("user_id",currentUser.id);
+
+if(clearError){
+message("addressMessage",clearError.message);
+return;
+}
+}
+
+const {error}=await db.from("customer_addresses").insert({
+user_id:currentUser.id,
+address_label:el("addressLabel").value.trim()||"Home",
+recipient_name:name,
+phone:phone,
+address_line1:line1,
+address_line2:el("line2").value.trim()||null,
+city:city,
+state:state,
+postal_code:postal,
+country:"India",
+is_default:makeDefault
+});
+
+if(error){
+message("addressMessage",error.message);
+return;
+}
+
+message("addressMessage","Address saved successfully.");
+
+["addressLabel","recipientName","addressPhone","line1","line2","city","state","postal"]
+.forEach(id=>el(id).value="");
+
+el("defaultAddress").checked=false;
+await loadAddresses();
+}
+
+async function loadAddresses(){
+const box=el("addressList");
+box.textContent="Loading addresses...";
+
+const {data,error}=await db.from("customer_addresses")
+.select("*").eq("user_id",currentUser.id)
+.order("created_at",{ascending:false});
+
+if(error){
+box.textContent=error.message;
+return;
+}
+
+if(!data||!data.length){
+box.textContent="No saved addresses yet.";
+return;
+}
+
+box.innerHTML=data.map(a=>`
+<div class="address">
+<strong>${safe(a.address_label)}</strong>
+${a.is_default?'<span class="status"> DEFAULT</span>':''}
+<p>${safe(a.recipient_name)} | ${safe(a.phone)}</p>
+<p>${safe(a.address_line1)} ${safe(a.address_line2||"")}</p>
+<p>${safe(a.city)}, ${safe(a.state)} - ${safe(a.postal_code)}</p>
+<button onclick="setDefault('${safe(a.id)}')">Set Default</button>
+<button class="danger" onclick="deleteAddress('${safe(a.id)}')">Delete</button>
+</div>
+`).join("");
+}
+
+function safe(value){
+return String(value??"").replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
+}
+
+async function setDefault(id){
+const {error:clearError}=await db.from("customer_addresses")
+.update({is_default:false}).eq("user_id",currentUser.id);
+
+if(clearError){alert(clearError.message);return;}
+
+const {error}=await db.from("customer_addresses")
+.update({is_default:true})
+.eq("id",id).eq("user_id",currentUser.id);
+
+if(error){alert(error.message);return;}
+
+await loadAddresses();
+}
+
+async function deleteAddress(id){
+if(!confirm("Delete this saved address?"))return;
+
+const {error}=await db.from("customer_addresses")
+.delete().eq("id",id).eq("user_id",currentUser.id);
+
+if(error){alert(error.message);return;}
+
+await loadAddresses();
+}
+
+async function logout(){
+await db.auth.signOut();
+currentUser=null;
+el("accountSection").classList.add("hidden");
+el("authSection").classList.remove("hidden");
+showLogin();
+message("authMessage","Logged out successfully.");
+}
+
+(async()=>{
+const {data:{session}}=await db.auth.getSession();
+if(session)await loadAccount();
+})();
+</script>
+</body>
+</html>
